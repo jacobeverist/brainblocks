@@ -18,8 +18,8 @@ using namespace BrainBlocks;
 // Constructs a ContextLearner.
 // =============================================================================
 ContextLearner::ContextLearner(
-    const uint32_t num_c,    // number of column
-    const uint32_t num_spc,  // number of statelets per column
+    const uint32_t num_c,    // number of columns
+    const uint32_t num_spc,  // number or statelets per column
     const uint32_t num_dps,  // number of dendrites per statelet
     const uint32_t num_rpd,  // number of receptors per dendrite
     const uint32_t d_thresh, // dendrite threshold
@@ -27,6 +27,7 @@ ContextLearner::ContextLearner(
     const uint8_t perm_inc,  // receptor permanence increment
     const uint8_t perm_dec,  // receptor permanence decrement
     const uint32_t num_t,    // number of BlockOutput time steps (optional)
+    const bool always_update,  // whether to only update on input changes
     const uint32_t seed)     // seed for random number generator
 : Block(seed) {
 
@@ -44,6 +45,8 @@ ContextLearner::ContextLearner(
     this->perm_thr = perm_thr;
     this->perm_inc = perm_inc;
     this->perm_dec = perm_dec;
+    this->always_update = always_update;
+
 
     num_s = num_c * num_spc;
     num_d = num_s * num_dps;
@@ -58,6 +61,11 @@ ContextLearner::ContextLearner(
 
     // Setup output
     output.setup(num_t, num_s);
+
+    //for (uint32_t i = 1 ; i < num_t ; i++ ) {
+        // Connect context to previous output
+    //    context.add_child(&output, i);
+    //}
 }
 
 // =============================================================================
@@ -177,7 +185,7 @@ void ContextLearner::encode() {
     assert(init_flag);
 
     // If any BlockInput children have changed
-    if (input.children_changed() || context.children_changed()) {
+    if (always_update || input.children_changed() || context.children_changed()) {
 
         // Get active columns
         input_acts = input.state.get_acts();
@@ -185,7 +193,8 @@ void ContextLearner::encode() {
         // Clear data
         pct_anom = 0.0;
         output.state.clear_all();
-        memory.state.clear_all();
+        //memory.state.clear_all();
+        d_acts.clear();
 
         // For every active column
         for (uint32_t k = 0; k < input_acts.size(); k++) {
@@ -210,8 +219,8 @@ void ContextLearner::learn() {
     assert(init_flag);
 
     // If any BlockInput children have changed
-    if (input.children_changed() || context.children_changed()) {
-
+    if (always_update || input.children_changed() || context.children_changed()) {
+        /*
         // For every active column
         for (uint32_t k = 0; k < input_acts.size(); k++) {
             uint32_t c = input_acts[k];
@@ -227,6 +236,15 @@ void ContextLearner::learn() {
                     d_used.set_bit(d);
                 }
             }
+        }
+        */
+
+        for (uint32_t i = 0; i < d_acts.size(); i++) {
+            uint32_t d = d_acts[i];
+            memory.learn_move(d, context.state, rng);
+
+            // ensures that any new dendrites added are set as used
+            d_used.set_bit(d);
         }
     }
 }
@@ -263,7 +281,8 @@ void ContextLearner::recognition(const uint32_t c) {
             // If dendrite overlap is above the threshold
             if (overlap >= d_thresh) {
                 uint32_t s = d / num_dps;
-                memory.state.set_bit(d); // activate the dendrite
+                //memory.state.set_bit(d); // activate the dendrite
+                d_acts.push_back(d);
                 output.state.set_bit(s); // activate the dendrite's statelet
                 surprise_flag = false;
             }
@@ -272,7 +291,7 @@ void ContextLearner::recognition(const uint32_t c) {
 }
 
 // =============================================================================
-// # Suprise
+// # Surprise
 //
 // TODO: add description
 // =============================================================================
@@ -291,6 +310,23 @@ void ContextLearner::surprise(const uint32_t c) {
 
     // Activate random statelet's next available dendritet
     set_next_available_dendrite(s_rand);
+
+    // For each statelet on the active column
+    for (uint32_t s = s_beg; s <= s_end; s++) {
+
+        // Check if it is a historical statelet
+        // - statelet is not the random statelet
+        // - statelet has at least 1 dendrite
+        //if(s != s_rand ) {
+        if(s != s_rand && next_sd[s] > 0) {
+
+            // Activate historical statelet
+            output.state.set_bit(s);
+
+            // Activate historical statelet's next available dendrite
+            set_next_available_dendrite(s);
+        }
+    }
 }
 
 // =============================================================================
@@ -305,9 +341,35 @@ void ContextLearner::set_next_available_dendrite(const uint32_t s) {
     uint32_t d_next = d_beg + next_sd[s];
 
     // Activate random statelet's next available dendrite
-    memory.state.set_bit(d_next);
+    //memory.state.set_bit(d_next);
+
+    // FIXME: if all dendrites have been used, will always reactivate the last dendrite
+    d_acts.push_back(d_next);
 
     // Update random statelet's next available dendrite
     if(next_sd[s] < num_dps - 1)
         next_sd[s]++;
+}
+
+
+// =============================================================================
+// get_historical_count
+//
+// TODO: add description
+// =============================================================================
+uint32_t ContextLearner::get_historical_count() {
+
+    uint32_t count = 0;
+
+    // For each statelet on the active column
+    for (uint32_t s = 0; s <= num_s; s++) {
+
+        // Check if it is a historical statelet
+        // - statelet has at least 1 dendrite
+        if(next_sd[s] > 0) {
+            count += 1;
+        }
+    }
+
+    return count;
 }

@@ -265,6 +265,8 @@ void SequenceLearner::learn() {
         for (uint32_t i = 0; i < d_acts.size(); i++) {
             uint32_t d = d_acts[i];
             memory.learn_move(d, context.state, rng);
+
+            // ensures that any new dendrites added are set as used
             d_used.set_bit(d);
         }
 
@@ -313,7 +315,7 @@ void SequenceLearner::recognition(const uint32_t c) {
 }
 
 // =============================================================================
-// Suprise
+// Surprise
 //
 // TODO: add description
 // =============================================================================
@@ -364,6 +366,8 @@ void SequenceLearner::set_next_available_dendrite(const uint32_t s) {
 
     // Activate random statelet's next available dendrite
     //memory.state.set_bit(d_next);
+
+    // FIXME: if all dendrites have been used, will always reactivate the last dendrite
     d_acts.push_back(d_next);
 
     // Update random statelet's next available dendrite
@@ -373,7 +377,7 @@ void SequenceLearner::set_next_available_dendrite(const uint32_t s) {
 
 
 // =============================================================================
-// Suprise
+// get_historical_count
 //
 // TODO: add description
 // =============================================================================

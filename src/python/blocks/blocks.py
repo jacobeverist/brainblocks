@@ -171,11 +171,12 @@ class ContextLearner():
             perm_inc=2,  # receptor permanence increment
             perm_dec=1,  # receptor permanence decrement
             num_t=2,     # number of BlockOutput time steps (optional)
+            always_update=False,  # whether to update when the input doesn't change
             seed=0):     # seed for random number generator
 
         self.obj = bb.ContextLearner(
             num_c, num_spc, num_dps, num_rpd, d_thresh, perm_thr, perm_inc,
-            perm_dec, num_t, seed)
+            perm_dec, num_t, always_update, seed)
 
     def init(self):
         self.obj.init()
@@ -194,6 +195,9 @@ class ContextLearner():
 
     def get_anomaly_score(self):
         return self.obj.get_anomaly_score()
+
+    def get_historical_count(self):
+        return self.obj.get_historical_count()
 
     @property
     def input(self):

@@ -45,6 +45,9 @@ for iteration_i in range(3):
         # Compute the pattern pooler
         pp.feedforward(learn=True)
 
+prev_scalar = np.array(None)
+prev_pool = np.array(None)
+
 for i in range(len(test_values)):
 
     # Set scalar transformer value
@@ -60,11 +63,22 @@ for i in range(len(test_values)):
     intarray = st.output.bits
 
     # Converted to numpy array for visualization
-    scalar_array = np.array(st.output.bits, dtype=np.bool)
-    pool_array = np.array(pp.output.bits, dtype=np.bool)
+    scalar_array = np.array(st.output.bits, dtype=bool)
+    pool_array = np.array(pp.output.bits, dtype=bool)
 
-    # Print output
-    print(test_values[i])
-    print(scalar_array)
-    print(pool_array)
+    # compare current value and encodings with previous
+    if i > 0:
+        float_diff = test_values[i]-test_values[i-1]
+        scalar_sim = np.dot(scalar_array.astype(int), prev_scalar.astype(int))
+        pool_sim = np.dot(pool_array.astype(int), prev_pool.astype(int))
+        result = f"{test_values[i]} {float_diff:.2f} {scalar_sim} {pool_sim}"
+        print(result)
+    else:
+        print(f"{test_values[i]}")
+    # print(scalar_array)
+    # print(pool_array)
+
+    # save the scalar and pooling codes to compare similarity with adjacent encodings
+    prev_scalar = scalar_array
+    prev_pool = pool_array
 

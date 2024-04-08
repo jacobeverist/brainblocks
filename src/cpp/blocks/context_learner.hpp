@@ -28,6 +28,7 @@ public:
         const uint8_t perm_inc,
         const uint8_t perm_dec,
         const uint32_t num_t=2,
+        const bool always_update=false,
         const uint32_t seed=0);
 
     // Overrided functions
@@ -46,6 +47,7 @@ public:
 
     // Getters
     double get_anomaly_score() { return pct_anom; };
+    uint32_t get_historical_count();
 
     // Block IO and memory variables
     BlockInput input;
@@ -70,11 +72,13 @@ private:
     uint8_t perm_thr;  // permanence threshold
     uint8_t perm_inc;  // permanence increment
     uint8_t perm_dec;  // permanence decrement
-    double pct_anom; // anomaly score percentage (0.0 to 1.0)
+    double pct_anom;   // anomaly score percentage (0.0 to 1.0)
+    bool always_update; // whether to only update on input changes
 
     bool surprise_flag = false;
     std::vector<uint32_t> input_acts;
     std::vector<uint32_t> next_sd; // next available dendrite on statelets
+    std::vector<uint32_t> d_acts; // active dendrite indices
     BitArray d_used; // (0 = dendrite available, 1 = dendrite in use)
 };
 

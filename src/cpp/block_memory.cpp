@@ -463,8 +463,17 @@ void BlockMemory::learn_move(
     assert(init_flag);
     assert(d < num_d);
 
+    // FIXME: available input bits here are selected from already connected receptors.
+    // FIXME: should sample over unconnected input space
+    // FIXME: next_addr starts at 0, and search continues linearly from
+    // FIXME: start of memory block to end, favoring the early bits for receptor connections
     uint32_t l = 0;
     uint32_t next_addr = 0;
+
+    // FIXME: randomizing the start address to see if this works as a fix
+    // FIXME: also randomizing the next instead of iterating through sequence, could slow down performance
+    next_addr = rng() % input.num_bits();
+
 
     // Shuffle the learning mask
     if (pct_learn < 1.0)
@@ -474,8 +483,6 @@ void BlockMemory::learn_move(
     uint32_t r_beg = d * num_rpd;
     uint32_t r_end = r_beg + num_rpd;
 
-    // FIXME: available input bits here are selected from already connected receptors.
-    // FIXME: should sample over unconnected input space
 
     // Get available input bits
     BitArray available = input;
@@ -515,6 +522,9 @@ void BlockMemory::learn_move(
                 r_addrs[r] = next_addr;
                 r_perms[r] = perm_thr;
                 available.clear_bit(next_addr);
+
+                // FIXME: also randomizing the next instead of iterating through sequence, could slow down performance
+                next_addr = rng() % input.num_bits();
             }
         }
     }

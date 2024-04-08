@@ -198,6 +198,7 @@ PYBIND11_MODULE(bb_backend, m) {
             const uint8_t,
             const uint8_t,
             const uint32_t,
+            const bool,
             const uint32_t>(),
         "num_c"_a,
         "num_spc"_a,
@@ -208,11 +209,15 @@ PYBIND11_MODULE(bb_backend, m) {
         "perm_inc"_a,
         "perm_dec"_a,
         "num_t"_a=2,
+        "always_update"_a=false,
         "seed"_a=0,
         "Constructs a ContextLearner")
 
         .def("get_anomaly_score", &ContextLearner::get_anomaly_score,
              "Returns anomaly score")
+
+        .def("get_historical_count", &ContextLearner::get_historical_count,
+             "Get number of historical statelets")
 
         .def_readonly("input", &ContextLearner::input,
                       "Returns input BlockInput object")
