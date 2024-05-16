@@ -2,13 +2,13 @@ import pathlib
 import pickle
 from time import time
 
-from brainblocks.blocks import ContextLearner, DiscreteTransformer
+from brainblocks.blocks import ContextLearner, DiscreteTransformer, PatternClassifier
 import numpy as np
 # convert letters to integer labels instead of byte values
 from sklearn import preprocessing
 
 # printing boolean arrays neatly
-np.set_printoptions(precision=3, suppress=True, threshold=1000000, linewidth=300,
+np.set_printoptions(precision=3, suppress=True, threshold=1000000, linewidth=512,
                     formatter={'bool': lambda bin_val: 'X' if bin_val else '-'})
 
 
@@ -122,6 +122,27 @@ if __name__ == "__main__":
 
     sl_bits = len(sl.output.bits)
 
+    pc = PatternClassifier(
+            num_l=num_labels,  # number of labels
+            num_s=256*num_labels,  # number of statelets
+            num_as=16,  # number of active statelets
+            perm_thr=20,  # receptor permanence threshold
+            perm_inc=2,  # receptor permanence increment
+            perm_dec=1,  # receptor permanence decrement
+            pct_pool=0.8,  # percent pooled
+            pct_conn=0.5,  # percent initially connected
+            pct_learn=0.3)  # percent learn
+
+    slabels = pc.get_statelet_labels()
+    slabel_str = f"0"
+    for s in range(len(slabels)):
+        char_letter = char_to_int_encoder.inverse_transform([slabels[s], ])[0]
+        slabel_str += f",{char_letter!r}"
+    slabel_str += "\n"
+    with open("slabel_states.csv", "w") as f:
+        f.write(slabel_str)
+
+
     # hol = SequenceLearner(
     # num_c=num_encoder_bits,  # number of columns
     # num_spc=num_statelets_per_column,  # number of statelets per column
@@ -161,6 +182,11 @@ if __name__ == "__main__":
     for i in range(1, history_window + 1):
         sl.context.add_child(sl.output, i)
 
+    # # Standard Classifier configuration
+    pc.input.add_child(sl.output)
+
+
+
     # //for (uint32_t i = 1 ; i < num_t ; i++ ) {
     #     // Connect context to previous output
     # //    context.add_child(&output, i);
@@ -180,7 +206,7 @@ if __name__ == "__main__":
     # sl.context.add_child(hol.output, 0)
 
     t0 = time()
-    break_count = 5000
+    # break_count = 5000
 
     # with (open("sl_hol_pp_match_encoder_bits_sherlock.csv", 'w') as f):
     # with (open("sl_hol_pp_match_encoder_bits_sherlock_scratch.csv", 'w') as f):
@@ -188,16 +214,67 @@ if __name__ == "__main__":
     # with (open("sl_hol_pp_match_encoder_bits_sherlock_random.csv", 'w') as f):
     # with (open("sl_sherlock_thin_history_10_random.csv", 'w') as f):
     # with (open(f"sl_sherlock_wide_history_{history_window:02d}_random.csv", 'w') as f):
-    output_csv = f"sl_sherlock_wide_{bits_per_discrete_state:02d}_deep_{num_statelets_per_column:03d}"
-    output_csv += f"_history_{history_window:02d}_dthresh_{d_thresh:02d}_random.csv"
+    # output_csv = f"sl_sherlock_wide_{bits_per_discrete_state:02d}_deep_{num_statelets_per_column:03d}"
+    # output_csv += f"_history_{history_window:02d}_dthresh_{d_thresh:02d}_random.csv"
     # sl_sherlock_wide_01_deep_100_history_10_dthresh_3_random.cs
+    # output_csv = f"seq_pred_sherlock_wide_{bits_per_discrete_state:02d}_deep_{num_statelets_per_column:03d}"
+    # output_csv += f"_history_{history_window:02d}_dthresh_{d_thresh:02d}_random.csv"
+    output_csv = f"seq_pred_sherlock_wide_{bits_per_discrete_state:02d}_deep_{num_statelets_per_column:03d}"
+    output_csv += f"_history_{history_window:02d}_dthresh_{d_thresh:02d}_random.csv"
     with open(output_csv, "w") as f:
 
-        # Loop through the values
-        for i in range(len(integer_input_data)):
-            # if i >= break_count:
-            #     break
+        # Header
+        header_str = f"step,current,next"
+        for i in range(0, num_labels):
+            char_letter = char_to_int_encoder.inverse_transform([i, ])[0]
+            header_str += f",{char_letter!r}"
+        header_str += "\n"
+        f.write(header_str)
 
+        # Training run
+        num_iter = 1
+        for this_iter in range(num_iter):
+            for i in range(len(integer_input_data)-1):
+                # Set discrete transformer value
+                discrete_encoder.set_value(integer_input_data[i])
+
+                # Compute the discrete transformer
+                discrete_encoder.feedforward()
+
+                # Compute the sequence learner
+                # t_sl = time()
+                sl.feedforward(learn=True)
+                # t_sl = time() - t_sl
+                # print(f"SL learn {t_sl:.6f}s")
+
+        # Training run
+        num_iter = 1
+        for this_iter in range(num_iter):
+            for i in range(len(integer_input_data)-1):
+                # Set discrete transformer value
+                discrete_encoder.set_value(integer_input_data[i])
+
+                # Compute the discrete transformer
+                discrete_encoder.feedforward()
+
+                # Compute the sequence learner
+                # t_sl = time()
+                sl.feedforward(learn=False)
+                # t_sl = time() - t_sl
+                # print(f"SL step {t_sl:.6f}s")
+
+                # Compute the classifier
+                # t_pc = time()
+                pc.set_label(integer_input_data[i+1])
+                pc.feedforward(learn=True)
+                # t_pc = time() - t_pc
+                # print(f"PC learn {t_pc:.6f}s")
+
+                print(f"Train {i:d}")
+                print(np.array(pc.output.bits, dtype=bool))
+
+        # Testing run
+        for i in range(len(integer_input_data)-1):
             # Set discrete transformer value
             discrete_encoder.set_value(integer_input_data[i])
 
@@ -206,13 +283,88 @@ if __name__ == "__main__":
             # discrete_binary_array = np.array(discrete_encoder.output.bits, dtype=bool)
 
             # Compute the sequence learner
-            sl.feedforward(learn=True)
+            # t_sl = time()
+            sl.feedforward(learn=False)
+            # t_sl = time() - t_sl
+            # print(f"SL step {t_sl:.6f}s")
+
+            # Compute the classifier
+            # t_pc = time()
+            pc.set_label(integer_input_data[i + 1])
+            pc.feedforward(learn=False)
+            # t_pc = time() - t_pc
+            # print(f"PC step {t_pc:.6f}s")
+
+            print(f"Test {i:d}")
+            print(np.array(pc.output.bits, dtype=bool))
+
+            # t_a = time()
+            # # sl_nonzero = sl.output.state.num_set
+            # sl_binary_array = np.array(sl.output.bits, dtype=bool)
+            # sl_nonzero = np.count_nonzero(sl_binary_array)
+            # t_a = time() - t_a
+            # print(f"SL active statelets {t_a:.6f}s")
+
+            # t_a = time()
+            # sl_state_count = sl.get_historical_count()
+            # t_a = time() - t_a
+            # print(f"SL historical statelets {t_a:.6f}s")
+
+            anom_score1 = sl.get_anomaly_score()
+
+            # t_a = time()
+            next_char_probs = pc.get_probabilities()
+            next_char = np.argmax(next_char_probs)
+            anom_score3 = 0 if next_char == integer_input_data[i+1] else 1
+            # t_a = time() - t_a
+            # print(f"PC anomaly score {t_a:.6f}s")
+
+            char_letter = char_to_int_encoder.inverse_transform([integer_input_data[i], ])[0]
+            char_letter_next = char_to_int_encoder.inverse_transform([integer_input_data[i+1], ])[0]
+
+            prob_str = f"{i:d},{char_letter!r},{char_letter_next!r}"
+            for k in range(0, len(next_char_probs)):
+                prob_str += f",{next_char_probs[k]:.4f}"
+            prob_str += "\n"
+
+            f.write(prob_str)
+
+            # f.write(f"{i}, {repr(char_letter)}, {integer_input_data[i]}, {sl_state_count}, ")
+            # f.write(f"{sl_nonzero}, {anom_score1:.6f}, {anom_score3:.6f}\n")
+
+        """
+        # Loop through the values
+        for i in range(len(integer_input_data)-1):
+            # Set discrete transformer value
+            discrete_encoder.set_value(integer_input_data[i])
+
+            # Compute the discrete transformer
+            discrete_encoder.feedforward()
+            # discrete_binary_array = np.array(discrete_encoder.output.bits, dtype=bool)
+
+            # Compute the sequence learner
+            t_sl = time()
+            sl.feedforward(learn=False)
+            t_sl = time() - t_sl
+            print(f"SL step {t_sl:.2f}s")
+
+            # Compute the classifier
+            t_pc = time()
+            pc.set_label(integer_input_data[i + 1])
+            pc.feedforward(learn=False)
+            t_pc = time() - t_pc
+            print(f"PC step {t_pc:.2f}s")
 
             sl_binary_array = np.array(sl.output.bits,
                                        dtype=bool)  # .reshape((num_encoder_bits, num_statelets_per_column))
 
-            sl_context_array = np.array(sl.context.bits,
-                                        dtype=bool)  # .reshape((num_encoder_bits, num_statelets_per_column))
+            # sl_context_array = np.array(sl.context.bits,
+            #                             dtype=bool)  # .reshape((num_encoder_bits, num_statelets_per_column))
+
+            next_char_probs = pc.get_probabilities()
+            next_char = np.argmax(next_char_probs)
+            anom_score3 = 0 if next_char == integer_input_data[i+1] else 1
+
 
             # print("Level 1")
             # for k in range(num_encoder_bits):
@@ -256,7 +408,7 @@ if __name__ == "__main__":
             # anom_score2 = hol.get_anomaly_score()
             scores.append(anom_score1)
             f.write(f"{i}, {repr(char_letter)}, {integer_input_data[i]}, {sl_state_count}, ")
-            f.write(f"{sl_nonzero}, {anom_score1:.2f}\n")
+            f.write(f"{sl_nonzero}, {anom_score1:.2f}, {anom_score3:.2f}\n")
             # f.write(f"{i}, {repr(char_letter)}, {integer_input_data[i]}, {sl_state_count}, {hol_state_count}, ")
             # f.write(f"{sl_nonzero}, {hol_nonzero}, {anom_score1:.2f}, {anom_score2:.2f}\n")
 
@@ -286,6 +438,8 @@ if __name__ == "__main__":
 
             # 5000 letters learned in 48.05 sec.
             # sl_hol_pp_match_encoder_bits_sherlock_scratch.csv
+        """
 
     t = time() - t0
-    print(f"{break_count} letters learned in {t:.2f} sec.")
+    num_letters = len(integer_input_data)
+    print(f"{num_letters} letters trained and tested in {t:.2f} sec.")

@@ -50,6 +50,7 @@ public:
 
     // Getters
     std::vector<uint32_t> get_labels();
+    std::vector<uint32_t> get_statelet_labels();
     std::vector<double> get_probabilities();
 
     // Block IO and memory variables

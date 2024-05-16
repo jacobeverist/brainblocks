@@ -186,6 +186,9 @@ void PatternClassifier::encode() {
         templaps[s] = overlaps[s];
     }
 
+    // FIXME: beg_idx should be taken from a randomized shuffle of starting points
+    // FIXME: this prevents statelet 0 from being set multiple times in case of zero overlap
+
     // Activate statelets with k-highest overlap
     for (uint32_t k = 0; k < num_as; k++) {
         //uint32_t beg_idx = utils_rand_uint(0, num_s - 1);
@@ -273,6 +276,21 @@ std::vector<uint32_t> PatternClassifier::get_labels() {
         labels[l] = l;
 
     return labels;
+}
+
+// =============================================================================
+// # Get Statelet Labels
+//
+// Returns array of stored statelet labels.
+// =============================================================================
+std::vector<uint32_t> PatternClassifier::get_statelet_labels() {
+
+    std::vector<uint32_t> statelet_labels(num_s);
+
+    for (uint32_t s = 0; s < num_s; s++)
+        statelet_labels[s] = s_labels[s];
+
+    return statelet_labels;
 }
 
 // =============================================================================

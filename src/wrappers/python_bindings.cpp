@@ -69,6 +69,9 @@ PYBIND11_MODULE(bb_backend, m) {
         .def("get_acts", &BitArray::get_acts,
              "Returns a vector of acts from the BitArray")
 
+        .def_property_readonly("num_set", &BitArray::num_set,
+                               "Returns the number of set (1) bits in BitArray")
+
         .def_property_readonly("num_bits", &BitArray::num_bits,
                                "Returns the number of bits in BitArray")
 
@@ -291,6 +294,9 @@ PYBIND11_MODULE(bb_backend, m) {
 
         .def("get_labels", &PatternClassifier::get_labels,
              "Returns array of stored labels")
+
+        .def("get_statelet_labels", &PatternClassifier::get_statelet_labels,
+             "Returns array of statelet labels")
 
         .def("get_probabilities", &PatternClassifier::get_probabilities,
              "Returns array of probability scores for each stored label")

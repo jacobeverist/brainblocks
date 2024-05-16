@@ -355,13 +355,13 @@ void ContextLearner::set_next_available_dendrite(const uint32_t s) {
 // =============================================================================
 // get_historical_count
 //
-// TODO: add description
+// count the number of cells that at least 1 dendrite created
 // =============================================================================
 uint32_t ContextLearner::get_historical_count() {
 
     uint32_t count = 0;
 
-    // For each statelet on the active column
+    // For each statelet
     for (uint32_t s = 0; s <= num_s; s++) {
 
         // Check if it is a historical statelet

@@ -26,6 +26,10 @@ class BitArray():
         return self.obj.num_bits
 
     @property
+    def num_set(self):
+        return self.obj.num_set
+
+    @property
     def num_words(self):
         return self.obj.num_words
 
@@ -287,6 +291,9 @@ class PatternClassifier():
 
     def get_labels(self):
         return self.obj.get_labels()
+
+    def get_statelet_labels(self):
+        return self.obj.get_statelet_labels()
 
     def get_probabilities(self):
         return self.obj.get_probabilities()
